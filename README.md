@@ -1,40 +1,16 @@
-# frontend-nanodegree-arcade-game
-===============================
+# Arcade Game
+This is an arcade game, made for Udacity Frontend Nanodegree project. User can use left, right, up, and down arrow keys to move themself in the board. They need to avoid colliding with the enemies (bugs) and reach the water on the top. Their score increases once they reach the top.
 
-This code is the result I achieved for ***[Udacity Front-End Web Developer Nanodegree](https://www.udacity.com/course/nd001) - Project 3: Classic Arcade Game Clone***.
+## Demo Link
+https://hkedia321.github.io/arcade-game-udacity/index.html
 
-This code has been *reviewed by me*. According to me, based on the rubric used
-by the Udacity reviewer, this code at least meets specifications on all the
-criteria.
+## Run Locally
 
-The reference that has been of great help to me was the [JavaScript
-documentation at the Mozilla Developer Network](https://developer.mozilla.org/en-US/docs/Web/JavaScript).
+- Clone this project: `git clone https://github.com/hkedia321/arcade-game-udacity`
+- `cd arcade-game-udacity`
+- Open `index.html` in a browser
 
-## Some Extra's
 
-* The enemies at least keep one tile distance of each other
-* There will be no more than three enemies on a row at the same time
-* For collision detection I've implemented a procedure to have
-pixel-precise collision detection. This is based on the alpha channels
-in the sprites.
+## Screenshot
 
-## The Game
-
-The game is a Frogger-clone, where the player starts at the bottom of
-the board. The user has to move the player to the top of the board, over
-the road into the water, while avoiding enemies crossing the road.
-When the player succeeds, or when the player has been hit by one of the
-enemies, the game will be reset to the initial state.
-
-You can try the game at the [GitHub Page](http://swesterveld.github.io/udacity-nd001-p3-classic-arcade-game-clone/)
-
-### Controls
-
-* The player can be moved with the ***arrow keys***
-* The game can be paused (and resumed) with the ***P-key***
-* A visual debug mode can be toggled on and off with the ***D-key***
-
-When the game is both on pause and in visual debug mode, the JavaScript
-debugger will be activated.
-
-Happy playing! :)
+![image](https://user-images.githubusercontent.com/17807257/46789082-4a789500-cd59-11e8-9165-e6a9e7e3e6ba.png)
