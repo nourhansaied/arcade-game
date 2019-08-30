@@ -9,10 +9,11 @@
  * drawn but that is not the case. What's really happening is the entire "scene"
  * is being drawn over and over, presenting the illusion of animation.
  *
- * This engine makes the canvas' context (ctx) object globally available to make 
- * writing app.js a little simpler to work with.
+ * This engine is available globally via the Engine variable and it also makes
+ * the canvas' context (ctx) object globally available to make writing app.js
+ * a little simpler to work with.
  */
-
+var crashedTimes = 0;
 var Engine = (function(global) {
     /* Predefine the variables we'll be using within this scope,
      * create the canvas element, grab the 2D context for that canvas
@@ -27,6 +28,12 @@ var Engine = (function(global) {
     canvas.width = 505;
     canvas.height = 606;
     doc.body.appendChild(canvas);
+
+    // Prepare helper-contexts for pixel-based collision detections
+    var canvasPlayer = doc.createElement('canvas'),
+        ctxPlayer = canvasPlayer.getContext('2d');
+    var canvasEnemy = doc.createElement('canvas'),
+        ctxEnemy = canvasEnemy.getContext('2d');
 
     /* This function serves as the kickoff point for the game loop itself
      * and handles properly calling the update and render methods.
@@ -66,6 +73,14 @@ var Engine = (function(global) {
         reset();
         lastTime = Date.now();
         main();
+
+        drawHelperContexts();
+    }
+
+    function drawHelperContexts() {
+        // Put entities on contexts for pixel-based collision detection
+        ctxPlayer.drawImage(Resources.get(player.sprite), 0, 0);
+        ctxEnemy.drawImage(Resources.get(allEnemies[0].sprite), 0, 0);
     }
 
     /* This function is called by main (our game loop) and itself calls all
@@ -78,15 +93,17 @@ var Engine = (function(global) {
      * on the entities themselves within your app.js file).
      */
     function update(dt) {
-        updateEntities(dt);
-        // checkCollisions();
+        if (!settings.pause) {
+            updateEntities(dt);
+            checkCollisions();
+        }
     }
 
-    /* This is called by the update function and loops through all of the
+    /* This is called by the update function  and loops through all of the
      * objects within your allEnemies array as defined in app.js and calls
      * their update() methods. It will then call the update function for your
      * player object. These update methods should focus purely on updating
-     * the data/properties related to the object. Do your drawing in your
+     * the data/properties related to  the object. Do your drawing in your
      * render methods.
      */
     function updateEntities(dt) {
@@ -94,6 +111,89 @@ var Engine = (function(global) {
             enemy.update(dt);
         });
         player.update();
+    }
+
+    /* This is called by the update function and checks all enemy
+     * objects for collisions with the player. Collision detection will
+     * be done in steps to reduce unneeded calculations:
+     * 1. check which enemies are on the same row as the player
+     * 2. filter out enemies with overlapping bounding boxes
+     * 3. calculate intersection of those overlaps
+     * 4. check those intersections for overlapping pixels
+     */
+    function checkCollisions() {
+        // First filter out the enemies on the same row as the player to
+        // avoid expensive calculations
+        allEnemies.forEach(function(enemy) {
+            enemy.threatLevel = 0; // Enemy is harmless
+            if (enemy.y === player.y) {
+                enemy.threatLevel = 1; // Enemy is on the same row
+                if (enemy.x + 101 <= player.x) {
+                    // Bounding box of the enemy is left of the player
+                } else if (enemy.x >= player.x + 101) {
+                    // Bounding box of the enemy is right of the player
+                } else {
+                    // Enemies bounding box is overlapping
+                    enemy.threatLevel = 2;
+                    var intersection = getIntersection(enemy, player);
+                    hud.intersections.push(intersection);
+
+                    if (isPixelCollision(enemy, player, intersection)) {
+                        document.getElementById("crashed").innerHTML = ++crashedTimes;
+                        player.reset();
+                    }
+                }
+            }
+        });
+    }
+
+    function getIntersection(entityA, entityB) {
+        // Calculating intersection
+        var box = {
+            x: Math.max(entityA.x, entityB.x),
+            width: Math.min(entityA.x+101, entityB.x+101) -
+                    Math.max(entityA.x, entityB.x),
+            // Entities have the same y-position and height
+            y: entityA.y,
+            height: entityA.height
+        };
+        return box;
+    }
+
+    function isPixelCollision(enemy, player, intersection) {
+        // If bounding boxes are intersecting, check the overlapping
+        // pixels from both sprites for alpha channel values not equal
+        // to 0. In that particular case there would be a collision.
+
+        // Get ImageData objects of player and enemy
+        var playerPixels, enemyPixels;
+        if (enemy.x < player.x) {
+            // Enemy is on the left
+            playerPixels = ctxPlayer.getImageData(
+                    0, 0, intersection.width, intersection.height);
+            enemyPixels = ctxEnemy.getImageData(
+                    enemy.width-intersection.width, 0,
+                    intersection.width, intersection.height);
+        } else {
+            // Enemy is on the right
+            playerPixels = ctxPlayer.getImageData(
+                    player.width-intersection.width, 0,
+                    intersection.width, intersection.height);
+            enemyPixels = ctxEnemy.getImageData(0, 0,
+                    intersection.width, intersection.height);
+        }
+
+        for (var x=0; x<intersection.width; x++) {
+            for (var y=0; y<intersection.height; y++) {
+                // The pixel actual check; if pixel from both sprites is
+                // not transparant, the collision has happened.
+                if (playerPixels.data[(y*intersection.width+x)*4+3]!==0 &&
+                    enemyPixels.data[(y*intersection.width+x)*4+3]!==0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /* This function initially draws the "game level", it will then call
@@ -117,9 +217,6 @@ var Engine = (function(global) {
             numRows = 6,
             numCols = 5,
             row, col;
-        
-        // Before drawing, clear existing canvas
-        ctx.clearRect(0,0,canvas.width,canvas.height)
 
         /* Loop through the number of rows and columns we've defined above
          * and, using the rowImages array, draw the correct image for that
@@ -134,15 +231,17 @@ var Engine = (function(global) {
                  * so that we get the benefits of caching these images, since
                  * we're using them over and over.
                  */
-                ctx.drawImage(Resources.get(rowImages[row]), col * 101, row * 83);
+                ctx.drawImage(Resources.get(rowImages[row]),
+                        col * 101, row * 83);
             }
         }
 
         renderEntities();
+        hud.render();
     }
 
     /* This function is called by the render function and is called on each game
-     * tick. Its purpose is to then call the render functions you have defined
+     * tick. It's purpose is to then call the render functions you have defined
      * on your enemy and player entities within app.js
      */
     function renderEntities() {
@@ -178,7 +277,7 @@ var Engine = (function(global) {
     Resources.onReady(init);
 
     /* Assign the canvas' context object to the global variable (the window
-     * object when run in a browser) so that developers can use it more easily
+     * object when run in a browser) so that developer's can use it more easily
      * from within their app.js files.
      */
     global.ctx = ctx;
